@@ -1,7 +1,14 @@
+import streamlit as st
 import tensorflow as tf
 import json
+import numpy as np
+from PIL import Image
 
-# Load images
+# Page Title
+st.title("CNN Image Classification")
+st.write("Upload an image to classify it")
+
+# Load Images
 data = tf.keras.utils.image_dataset_from_directory(
     r"C:\vaibhav\dog-cat-class\train",
     image_size=(64, 64),
@@ -25,47 +32,51 @@ model.compile(
 )
 
 # Train Model
-model.fit(data, epochs=50)
+if st.button("Train Model"):
+    with st.spinner("Training model..."):
+        model.fit(data, epochs=50)
+        model.save("CAT.keras")
 
-# Model Summary
-model.summary()
+        with open("classes.json", "w") as f:
+            json.dump(data.class_names, f)
 
-# Prediction
-img = tf.keras.utils.load_img(
-    r"C:\vaibhav\dog-cat-class\test\p3.jpg",
-    target_size=(64,64)
+    st.success("Model trained successfully!")
+
+# Upload Image
+file = st.file_uploader(
+    "Upload Image",
+    type=["jpg", "jpeg", "png"]
 )
 
-x = tf.keras.utils.img_to_array(img)
-x = tf.expand_dims(x, 0)
+if file is not None:
 
-p = model.predict(x)
-print(data.class_names[p.argmax()])
+    img = Image.open(file).convert("RGB")
 
-# Save Model
-model.save("CAT.keras")
+    st.image(img, caption="Uploaded Image")
 
-# Save Class Names
-with open("classes.json", "w") as f:
-    json.dump(data.class_names, f)
+    if st.button("Predict Image"):
 
-# Load Class Names
-with open("classes.json", "r") as f:
-    class_names = json.load(f)
+        # Resize Image
+        img = img.resize((64,64))
 
-# Load Saved Model
-m = tf.keras.models.load_model("CAT.keras")
+        # Convert Image to Array
+        x = tf.keras.utils.img_to_array(img)
 
-# Test Another Image
-img = tf.keras.utils.load_img(
-    r"C:\vaibhav\dog-cat-class\test\p5.jpg",
-    target_size=(64,64)
-)
+        # Expand Dimensions
+        x = tf.expand_dims(x, 0)
 
-x = tf.keras.utils.img_to_array(img)
-x = tf.expand_dims(x, 0)
+        # Load Saved Model
+        m = tf.keras.models.load_model("CAT.keras")
 
-p = m.predict(x)
+        # Load Class Names
+        with open("classes.json", "r") as f:
+            class_names = json.load(f)
 
-print(p)
-print(class_names[p.argmax()])
+        # Prediction
+        p = m.predict(x)
+
+        # Display Result
+        st.success("Predicted Category: " + class_names[np.argmax(p)])
+
+        st.write("Prediction:", p)
+        st.write("Accuracy:", round(float(np.max(p))*100, 2), "%")
